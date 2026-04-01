@@ -1238,54 +1238,29 @@ function goBack() {
 }
 
 // ── SUBMIT ─────────────────────────────
-const AGENDOR_TOKEN = 'ac6ca5a0-25df-4497-a9fc-444afee8b4c1';
-const AGENDOR_DEAL_STAGE = 3716093; // NL – Novo Lead
-const AGENDOR_FUNNEL    = 879521;   // Funil RocketAlive
-
-async function agendorRequest(endpoint, body) {
-  const res = await fetch('https://api.agendor.com.br/v3' + endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Token ' + AGENDOR_TOKEN,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-  return res.ok ? res.json() : null;
-}
+const PLUGA_WEBHOOK = 'https://hooks.pluga.co/v2/webhooks/MTcxMDc0MjUxNjc2NDQ4NTU3NjNUMTc3NTA4MjQzNA';
 
 async function submitForm() {
   const btn = document.getElementById('nextBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 
-  const phone = state.whatsapp.replace(/\D/g, '');
+  const idadesDesc = state.idades.length
+    ? state.idades.map((idade, i) => `Vida ${i + 1}: ${idade} anos`).join(', ')
+    : 'Não informadas';
 
   try {
-    // 1. Cria a Pessoa no Agendor
-    const personRes = await agendorRequest('/people', {
-      name: state.nome,
-      emails: [{ email: state.email }],
-      phones: [{ phone, type: 'celular' }]
-    });
-
-    const personId = personRes && personRes.data && personRes.data.id;
-
-    // 2. Cria o Negócio vinculado à Pessoa
-    const dealEndpoint = personId ? `/people/${personId}/deals` : '/deals';
-    const idadesDesc = state.idades.length
-      ? state.idades.map((idade, i) => `Vida ${i + 1}: ${idade} anos`).join(', ')
-      : 'Não informadas';
-
-    await agendorRequest(dealEndpoint, {
-      title: `[LEAD LP] ${state.nome}`,
-      dealStage: AGENDOR_DEAL_STAGE,
-      funnel: AGENDOR_FUNNEL,
-      customFields: {
-        possui_cnpj_ativo: state.cnpj ? 'Sim' : 'Não',
-        ja_possui_plano:   state.hasPlano ? 69426 : 69427,
-        n_de_vidas:        parseInt(state.vidas),
-        idade_das_vidas:   idadesDesc
-      }
+    await fetch(PLUGA_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome:         state.nome,
+        email:        state.email,
+        whatsapp:     state.whatsapp,
+        cnpj_ativo:   state.cnpj ? 'Sim' : 'Não',
+        possui_plano: state.hasPlano ? 'Sim' : 'Não',
+        num_vidas:    parseInt(state.vidas),
+        idades:       idadesDesc
+      })
     });
   } catch(e) {
     // segue para tela de sucesso mesmo em caso de erro de rede
